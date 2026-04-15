@@ -1,0 +1,9 @@
+# Google AI Studio / Gemini (optional if Grok is configured)
+GEMINI_API_KEY=
+
+# xAI Grok — used if Gemini fails or if GEMINI_API_KEY is unset
+GROK_API_KEY=
+
+# Optional overrides (defaults come from wrangler.jsonc)
+# GEMINI_MODEL=gemini-1.5-flash
+# GROK_MODEL=grok-3
