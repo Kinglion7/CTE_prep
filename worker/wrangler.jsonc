@@ -2,8 +2,14 @@
   "name": "dcips-extract",
   "main": "src/index.ts",
   "compatibility_date": "2025-04-01",
+  "kv_namespaces": [
+    {
+      "binding": "DCIPS_AUTH",
+      "id": "63aef145daac4554bb36edfbc139e056"
+    }
+  ],
   "vars": {
-    "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173, https://kinglion7.github.io/CTE_prep/",
+    "ALLOWED_ORIGINS": "http://localhost:5173,http://127.0.0.1:5173,https://kinglion7.github.io",
     "GEMINI_MODEL": "gemini-2.0-flash",
     "GROK_MODEL": "grok-3"
   }

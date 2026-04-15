@@ -1,15 +1,12 @@
+import { handleAuthOptions, handleAuthVerify } from "./auth";
+import type { Env } from "./bindings";
+import { jsonResponse } from "./cors";
 import {
   DCIPS_JSON_SYSTEM_INSTRUCTION_INDIVIDUAL,
   DCIPS_JSON_SYSTEM_INSTRUCTION_MULTIPLE,
 } from "./prompt";
 
-export interface Env {
-  GEMINI_API_KEY?: string;
-  GROK_API_KEY?: string;
-  ALLOWED_ORIGINS: string;
-  GEMINI_MODEL: string;
-  GROK_MODEL?: string;
-}
+export type { Env };
 
 type ExtractBody = { text?: string; reportFormat?: string };
 
@@ -56,37 +53,6 @@ const JSON_KEYS = [
   "Remarks",
 ] as const;
 
-function parseAllowedOrigins(raw: string): string[] {
-  return raw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-/** Returns CORS headers for allowed browser origins, or empty object for non-browser clients (no Origin). Null = reject. */
-function corsHeaders(
-  request: Request,
-  env: Env
-): Record<string, string> | null {
-  const allowed = parseAllowedOrigins(env.ALLOWED_ORIGINS);
-  if (allowed.length === 0) return null;
-
-  const origin = request.headers.get("Origin");
-  if (!origin) {
-    return {};
-  }
-  if (!allowed.includes(origin)) {
-    return null;
-  }
-  return {
-    "Access-Control-Allow-Origin": origin,
-    Vary: "Origin",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Max-Age": "86400",
-  };
-}
-
 function normalizeOneCasualty(rec: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const key of JSON_KEYS) {
@@ -126,25 +92,6 @@ function parseJsonFromModelText(partText: string): Record<string, string>[] {
     obj = JSON.parse(m[0]) as unknown;
   }
   return parsePersonnelFromModelObject(obj);
-}
-
-function jsonResponse(
-  data: unknown,
-  status: number,
-  request: Request,
-  env: Env
-): Response {
-  const c = corsHeaders(request, env);
-  if (!c) {
-    return new Response(JSON.stringify({ error: "Origin not allowed" }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json", ...c },
-  });
 }
 
 async function callGeminiJson(
@@ -346,24 +293,16 @@ export default {
   ): Promise<Response> {
     const url = new URL(request.url);
 
-    if (request.method === "OPTIONS" && url.pathname === "/api/extract") {
-      const c = corsHeaders(request, env);
-      if (!c) {
-        return new Response(null, { status: 403 });
-      }
-      return new Response(null, { status: 204, headers: c });
+    if (request.method === "OPTIONS" && url.pathname.startsWith("/api/")) {
+      return handleAuthOptions(request, env);
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/auth/verify") {
+      return handleAuthVerify(request, env);
     }
 
     if (request.method !== "POST" || url.pathname !== "/api/extract") {
       return jsonResponse({ error: "Not found" }, 404, request, env);
-    }
-
-    const c = corsHeaders(request, env);
-    if (!c) {
-      return new Response(JSON.stringify({ error: "Origin not allowed" }), {
-        status: 403,
-        headers: { "Content-Type": "application/json" },
-      });
     }
 
     if (!env.GEMINI_API_KEY && !env.GROK_API_KEY) {

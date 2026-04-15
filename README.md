@@ -5,7 +5,7 @@ DCIPS CAS Report Generator: Vite + React frontend (GitHub Pages) and a Cloudflar
 ## Repository layout
 
 - [frontend/](frontend/) — React app; serves static assets including `public/DCIPS_Template.xlsx`.
-- [worker/](worker/) — Cloudflare Worker: `POST /api/extract` → JSON (28 fields) via **Gemini first**, then **Grok (xAI)** if Gemini fails; strict CORS.
+- [worker/](worker/) — Cloudflare Worker: `POST /api/extract` → JSON (28 fields) via **Gemini first**, then **Grok (xAI)** if Gemini fails; `POST /api/auth/verify` checks the site access code against **KV** (default password until rotated server-side); strict CORS.
 
 ## Local development
 
@@ -24,9 +24,12 @@ DCIPS CAS Report Generator: Vite + React frontend (GitHub Pages) and a Cloudflar
 ## Cloudflare Worker (production)
 
 1. `cd worker && npx wrangler login`
-2. `npx wrangler secret put GEMINI_API_KEY` and/or `npx wrangler secret put GROK_API_KEY` — paste keys (never commit them).
-3. Set **production** browser origins: add your GitHub Pages origin (e.g. `https://youruser.github.io`) to `ALLOWED_ORIGINS` in `wrangler.jsonc` (or override with `wrangler vars` / dashboard), then `npx wrangler deploy`.
-4. Note the deployed Worker HTTPS URL (e.g. `https://dcips-extract.<subdomain>.workers.dev`).
+2. The Worker uses a **KV namespace** (`DCIPS_AUTH` in [worker/wrangler.jsonc](worker/wrangler.jsonc)) to store the current access code after optional rotation. If the binding ID is missing, create one: `npx wrangler kv namespace create DCIPS_AUTH` and paste the `id` into `wrangler.jsonc`.
+3. `npx wrangler secret put GEMINI_API_KEY` and/or `npx wrangler secret put GROK_API_KEY` — paste keys (never commit them).
+4. Set **production** browser origins: add your GitHub Pages origin (e.g. `https://youruser.github.io` — no path) to `ALLOWED_ORIGINS` in `wrangler.jsonc` (or override with `wrangler vars` / dashboard), then `npx wrangler deploy`.
+5. Note the deployed Worker HTTPS URL (e.g. `https://dcips-extract.<subdomain>.workers.dev`).
+
+**Access code:** The frontend calls `POST /api/auth/verify` with `{ "password": "..." }`. The Worker compares against KV (default **Bravo** when the key is unset). A separate **rotation code** exists only in Worker code; when entered, KV is updated so the new password applies to **all** users (see `worker/src/auth.ts`).
 
 ## GitHub Pages
 
